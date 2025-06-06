@@ -1,0 +1,71 @@
+# Task ID: 4
+# Title: Implement Authentication and User Management
+# Status: pending
+# Dependencies: 2, 3
+# Priority: high
+# Description: Create authentication system with email and OAuth (Google, GitHub) login options, user registration, profile management, and role-based access control (RBAC).
+# Details:
+1. Install authentication dependencies
+```bash
+pip install python-jose passlib bcrypt python-multipart authlib
+```
+
+2. Implement user registration and login endpoints
+```python
+# app/api/v1/routes/auth.py
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+
+from app.core.security import create_access_token, get_password_hash, verify_password
+from app.db.session import get_db
+from app.db import models, schemas
+
+router = APIRouter()
+
+@router.post("/register", response_model=schemas.User)
+async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # Check if user exists
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create new user
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(email=user.email, password_hash=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@router.post("/login")
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Authenticate user
+    user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+```
+
+3. Set up OAuth providers (Google, GitHub)
+4. Implement profile editing functionality (name, photo, password change)
+5. Create RBAC middleware for role-based access control
+6. Implement password reset flow with email verification
+7. Add session management with Redis
+8. Create user profile endpoints
+
+# Test Strategy:
+1. Unit tests for authentication endpoints
+2. Test OAuth flows with mock providers
+3. Verify password hashing and verification
+4. Test RBAC permissions for different user roles
+5. Security testing for common authentication vulnerabilities
+6. Test password reset flow
+7. Verify session management and expiration

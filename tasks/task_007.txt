@@ -1,0 +1,143 @@
+# Task ID: 7
+# Title: Implement Search and Deep Research Features
+# Status: pending
+# Dependencies: 5, 6
+# Priority: medium
+# Description: Develop the Search in Chat and Deep Research features to enhance conversations with web search results, source collection, and citation generation.
+# Details:
+1. Create search service with web search integration
+```python
+# app/services/search.py
+from typing import List, Dict, Any
+import aiohttp
+import os
+
+class SearchService:
+    def __init__(self):
+        self.search_api_key = os.getenv("SEARCH_API_KEY")
+        self.search_engine_id = os.getenv("SEARCH_ENGINE_ID")
+    
+    async def web_search(self, query: str, num_results: int = 5) -> List[Dict[str, Any]]:
+        async with aiohttp.ClientSession() as session:
+            params = {
+                "key": self.search_api_key,
+                "cx": self.search_engine_id,
+                "q": query,
+                "num": num_results
+            }
+            async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
+                data = await response.json()
+                if "items" not in data:
+                    return []
+                
+                results = []
+                for item in data["items"]:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "link": item.get("link", ""),
+                        "snippet": item.get("snippet", "")
+                    })
+                return results
+```
+
+2. Implement Deep Research orchestrator
+```python
+# app/services/deep_research.py
+from typing import List, Dict, Any
+from app.services.search import SearchService
+from app.llm.adapter import get_llm_provider
+
+class DeepResearchService:
+    def __init__(self):
+        self.search_service = SearchService()
+    
+    async def conduct_research(self, query: str, llm_profile_id: int) -> Dict[str, Any]:
+        # Step 1: Generate search queries based on the main query
+        llm = get_llm_provider(llm_profile_id)
+        search_queries = await self._generate_search_queries(query, llm)
+        
+        # Step 2: Perform searches for each query
+        all_results = []
+        for search_query in search_queries:
+            results = await self.search_service.web_search(search_query)
+            all_results.extend(results)
+        
+        # Step 3: Extract and summarize content from top results
+        content_summaries = await self._extract_content(all_results)
+        
+        # Step 4: Generate final research report with citations
+        report = await self._generate_report(query, content_summaries, llm)
+        
+        return {
+            "query": query,
+            "search_queries": search_queries,
+            "sources": all_results,
+            "report": report
+        }
+    
+    async def _generate_search_queries(self, main_query: str, llm) -> List[str]:
+        # Use LLM to generate multiple search queries based on the main query
+        pass
+    
+    async def _extract_content(self, search_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        # Extract and summarize content from search results
+        pass
+    
+    async def _generate_report(self, query: str, content_summaries: List[Dict[str, Any]], llm) -> str:
+        # Generate final research report with citations
+        pass
+```
+
+3. Create UI components for search results display
+```tsx
+// components/SearchResultCard.tsx
+import React from 'react';
+
+interface SearchResult {
+  title: string;
+  link: string;
+  snippet: string;
+}
+
+interface SearchResultCardProps {
+  result: SearchResult;
+  onInsert: (text: string) => void;
+}
+
+const SearchResultCard: React.FC<SearchResultCardProps> = ({ result, onInsert }) => {
+  return (
+    <div className="search-result-card p-3 border rounded-md mb-2">
+      <h4 className="font-medium text-blue-600 hover:underline">
+        <a href={result.link} target="_blank" rel="noopener noreferrer">
+          {result.title}
+        </a>
+      </h4>
+      <p className="text-sm my-1">{result.snippet}</p>
+      <div className="flex justify-end mt-2">
+        <button 
+          className="text-xs bg-secondary px-2 py-1 rounded"
+          onClick={() => onInsert(`[${result.title}](${result.link}): ${result.snippet}`)}
+        >
+          Insert into chat
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SearchResultCard;
+```
+
+4. Implement search toggle in the chat interface
+5. Create Deep Research mode UI with progress indicators
+6. Implement citation formatting and source tracking
+7. Add inline search result cards in chat messages
+
+# Test Strategy:
+1. Unit tests for search service
+2. Test Deep Research orchestration flow
+3. Verify search result rendering
+4. Test citation generation and formatting
+5. Verify source tracking and attribution
+6. Test integration with chat interface
+7. Performance testing for research tasks

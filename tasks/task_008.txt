@@ -1,0 +1,245 @@
+# Task ID: 8
+# Title: Develop Admin Console and User Management Dashboard
+# Status: pending
+# Dependencies: 3, 4
+# Priority: medium
+# Description: Create the admin console with user management, system monitoring, and configuration capabilities as specified in the PRD.
+# Details:
+1. Create admin dashboard layout
+2. Implement user management UI with listing, search, and filtering
+```tsx
+// pages/admin/users.tsx
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { Table, Button, Input, Select } from 'your-ui-library';
+
+interface User {
+  id: number;
+  email: string;
+  role: 'admin' | 'user';
+  status: 'active' | 'inactive';
+  created_at: string;
+}
+
+const UsersPage: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const router = useRouter();
+  
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+  
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/admin/users');
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleDeactivateUser = async (userId: number) => {
+    // Implementation
+  };
+  
+  const handleDeleteUser = async (userId: number) => {
+    // Implementation with confirmation
+  };
+  
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+  
+  return (
+    <div className="admin-users-page">
+      <h1 className="text-2xl font-bold mb-4">User Management</h1>
+      
+      <div className="filters flex gap-4 mb-4">
+        <Input 
+          placeholder="Search by email" 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+        />
+        
+        <Select 
+          value={roleFilter} 
+          onChange={(e) => setRoleFilter(e.target.value)}
+        >
+          <option value="all">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="user">User</option>
+        </Select>
+        
+        <Select 
+          value={statusFilter} 
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </Select>
+      </div>
+      
+      <Table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={6} className="text-center py-4">Loading...</td>
+            </tr>
+          ) : filteredUsers.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="text-center py-4">No users found</td>
+            </tr>
+          ) : (
+            filteredUsers.map(user => (
+              <tr key={user.id}>
+                <td>{user.id}</td>
+                <td>{user.email}</td>
+                <td>{user.role}</td>
+                <td>{user.status}</td>
+                <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                <td>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant={user.status === 'active' ? 'destructive' : 'default'}
+                      onClick={() => handleDeactivateUser(user.id)}
+                    >
+                      {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => handleDeleteUser(user.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </Table>
+    </div>
+  );
+};
+
+export default UsersPage;
+```
+
+3. Create backend API endpoints for admin functions
+```python
+# app/api/v1/routes/admin.py
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.core.security import get_current_active_user, check_admin_role
+from app.db.session import get_db
+from app.db import models, schemas
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+@router.get("/users", response_model=List[schemas.UserAdminView])
+async def get_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Check if user is admin
+    check_admin_role(current_user)
+    
+    users = db.query(models.User).all()
+    return users
+
+@router.put("/users/{user_id}/status")
+async def update_user_status(
+    user_id: int,
+    status_update: schemas.UserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Check if user is admin
+    check_admin_role(current_user)
+    
+    # Prevent self-deactivation
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot change your own status"
+        )
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    user.is_active = status_update.is_active
+    db.commit()
+    return {"status": "success"}
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Check if user is admin
+    check_admin_role(current_user)
+    
+    # Prevent self-deletion
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account"
+        )
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    db.delete(user)
+    db.commit()
+    return {"status": "success"}
+```
+
+4. Implement system monitoring dashboard with Prometheus and Grafana integration
+5. Create LLM usage statistics and visualization
+6. Implement user activity logs and audit trails
+7. Add configuration management for system settings
+
+# Test Strategy:
+1. Unit tests for admin components and API endpoints
+2. Test user management functionality (listing, filtering, deactivation, deletion)
+3. Verify role-based access control for admin functions
+4. Test monitoring dashboard data accuracy
+5. Verify audit logging functionality
+6. Test configuration management
+7. Security testing for admin functions

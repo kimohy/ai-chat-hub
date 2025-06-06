@@ -1,0 +1,157 @@
+# Task ID: 6
+# Title: Implement LLM Profile Selection and Management
+# Status: pending
+# Dependencies: 2, 5
+# Priority: high
+# Description: Create the LLM profile selection UI and backend services to manage different LLM providers (OpenAI, Anthropic Claude, Google Gemini) with configurable parameters.
+# Details:
+1. Create database models for LLM profiles
+```python
+# Add to app/db/models.py
+class LLMProvider(enum.Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GOOGLE = "google"
+
+class LLMProfile(Base):
+    __tablename__ = "llm_profiles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    provider = Column(Enum(LLMProvider), nullable=False)
+    model_id = Column(String, nullable=False)  # e.g., "gpt-4o", "claude-3-sonnet"
+    temperature = Column(Float, default=0.7)
+    max_tokens = Column(Integer, default=2000)
+    is_default = Column(Boolean, default=False)
+    is_admin_created = Column(Boolean, default=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Null for admin profiles
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="llm_profiles")
+```
+
+2. Create LLM profile management service
+```python
+# app/services/llm_profile.py
+from typing import List, Optional
+from sqlalchemy.orm import Session
+from app.db import models
+
+class LLMProfileService:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def get_profiles(self, user_id: Optional[int] = None) -> List[models.LLMProfile]:
+        query = self.db.query(models.LLMProfile)
+        
+        # Always include admin-created profiles
+        if user_id:
+            query = query.filter(
+                (models.LLMProfile.is_admin_created == True) | 
+                (models.LLMProfile.user_id == user_id)
+            )
+        else:
+            query = query.filter(models.LLMProfile.is_admin_created == True)
+            
+        return query.order_by(models.LLMProfile.created_at).all()
+    
+    async def create_profile(self, profile_data: dict, user_id: Optional[int] = None) -> models.LLMProfile:
+        profile = models.LLMProfile(**profile_data, user_id=user_id)
+        self.db.add(profile)
+        self.db.commit()
+        self.db.refresh(profile)
+        return profile
+```
+
+3. Create API endpoints for profile management
+4. Implement profile selection UI in the right sidebar
+```tsx
+// components/LLMProfileSelector.tsx
+import React, { useState, useEffect } from 'react';
+import { useProfileStore } from '../stores/profileStore';
+
+interface LLMProfile {
+  id: number;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'google';
+  model_id: string;
+  temperature: number;
+  max_tokens: number;
+}
+
+const LLMProfileSelector: React.FC = () => {
+  const { profiles, selectedProfile, fetchProfiles, selectProfile } = useProfileStore();
+  
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles]);
+  
+  return (
+    <div className="llm-profile-selector">
+      <h3 className="text-lg font-medium mb-2">Model Profiles</h3>
+      <div className="space-y-2">
+        {profiles.map((profile) => (
+          <button
+            key={profile.id}
+            className={`w-full text-left p-2 rounded ${selectedProfile?.id === profile.id ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}
+            onClick={() => selectProfile(profile)}
+          >
+            <div className="font-medium">{profile.name}</div>
+            <div className="text-sm opacity-70">{profile.model_id}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default LLMProfileSelector;
+```
+
+5. Create Zustand store for profile management
+```tsx
+// stores/profileStore.ts
+import { create } from 'zustand';
+
+interface LLMProfile {
+  id: number;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'google';
+  model_id: string;
+  temperature: number;
+  max_tokens: number;
+}
+
+interface ProfileState {
+  profiles: LLMProfile[];
+  selectedProfile: LLMProfile | null;
+  fetchProfiles: () => Promise<void>;
+  selectProfile: (profile: LLMProfile) => void;
+}
+
+export const useProfileStore = create<ProfileState>((set) => ({
+  profiles: [],
+  selectedProfile: null,
+  fetchProfiles: async () => {
+    const response = await fetch('/api/v1/llm-profiles');
+    const data = await response.json();
+    set({ profiles: data });
+    if (data.length > 0 && !set.selectedProfile) {
+      set({ selectedProfile: data[0] });
+    }
+  },
+  selectProfile: (profile) => set({ selectedProfile: profile }),
+}));
+```
+
+6. Implement profile parameter editing UI (temperature, max tokens)
+7. Add favorites and sharing functionality for profiles
+
+# Test Strategy:
+1. Unit tests for LLM profile components
+2. Test profile selection and parameter configuration
+3. Verify profile creation and editing
+4. Test profile sharing functionality
+5. Verify default profiles are loaded correctly
+6. Test admin vs user profile visibility
+7. Performance testing for profile loading

@@ -1,0 +1,126 @@
+# Task ID: 5
+# Title: Develop Chat Interface and Conversation Management
+# Status: pending
+# Dependencies: 1, 4
+# Priority: high
+# Description: Implement the core chat interface with Markdown rendering, code highlighting, multi-turn context maintenance, and conversation history management.
+# Details:
+1. Create chat UI components in Next.js
+   - ChatWindow component for displaying messages
+   - MessageInput component for user input
+   - Markdown rendering with code highlighting
+
+2. Install required packages
+```bash
+npm install react-markdown prismjs
+```
+
+3. Implement chat message component with Markdown support
+```tsx
+// components/ChatMessage.tsx
+import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+
+interface ChatMessageProps {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+}
+
+const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timestamp }) => {
+  return (
+    <div className={`chat-message ${role}`}>
+      <div className="avatar">
+        {role === 'user' ? '👤' : '🤖'}
+      </div>
+      <div className="message-content">
+        <ReactMarkdown
+          components={{
+            code({ node, inline, className, children, ...props }) {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={atomDark}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            },
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+        <div className="timestamp">
+          {timestamp.toLocaleTimeString()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatMessage;
+```
+
+4. Implement conversation context management with token counting
+5. Create conversation service for backend
+```python
+# app/services/conversation.py
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from app.db import models
+
+class ConversationService:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def create_conversation(self, user_id: int, title: str = "New Conversation") -> models.Conversation:
+        conversation = models.Conversation(user_id=user_id, title=title)
+        self.db.add(conversation)
+        self.db.commit()
+        self.db.refresh(conversation)
+        return conversation
+    
+    async def add_message(self, conversation_id: int, role: str, content: str, token_count: int) -> models.Message:
+        message = models.Message(
+            conversation_id=conversation_id,
+            role=role,
+            content=content,
+            token_count=token_count
+        )
+        self.db.add(message)
+        self.db.commit()
+        self.db.refresh(message)
+        return message
+    
+    async def get_conversation_messages(self, conversation_id: int) -> List[models.Message]:
+        return self.db.query(models.Message)\
+            .filter(models.Message.conversation_id == conversation_id)\
+            .order_by(models.Message.created_at)\
+            .all()
+    
+    async def summarize_conversation(self, conversation_id: int) -> str:
+        # Implement logic to summarize conversation when token limit is exceeded
+        pass
+```
+
+6. Implement conversation history sidebar with search functionality
+7. Add conversation title generation based on content
+8. Implement streaming responses using Server-Sent Events (SSE)
+
+# Test Strategy:
+1. Unit tests for chat components
+2. Test Markdown rendering and code highlighting
+3. Verify multi-turn context maintenance
+4. Test conversation history management
+5. Verify token counting and context summarization
+6. Test streaming responses
+7. Performance testing for chat rendering with large message history

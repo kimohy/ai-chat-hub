@@ -1,0 +1,203 @@
+# AIChatHub 서비스 제품 요구사항 문서 (PRD)
+
+## 1. 제품 개요
+
+### 1.1 목적
+
+기업 및 개인 사용자가 다양한 LLM(대형 언어 모델)을 손쉽게 연결·활용하고, ChatGPT 수준의 대화 품질을 제공받을 수 있는 다목적 AI 서비스 플랫폼을 구축한다. 사용자는 관리자 설정 LLM 프로파일(OpenAI, Anthropic Claude, Google Gemini) 중에서 최적의 모델을 선택하고, 대화·검색·딥리서치 등 고급 기능을 하나의 UI에서 통합적으로 이용할 수 있다.
+
+### 1.2 범위
+
+* **MVP 범위**: 기본 회원가입/로그인, 관리자(Admin) 콘솔, LLM Hub 연동, 대화 UI(챗·검색·Deep Research), 멀티턴 컨텍스트, 채팅 히스토리 저장·검색.
+* **확장 범위**: 프롬프트 프리셋 마켓, 플러그인 실행, 음성/이미지 입력, Fine‑tuned 모델 배포, 모바일 앱.
+
+## 2. 목표 및 성공 지표
+
+| 카테고리        | 목표                                | 핵심 지표(KPI)      |
+| ----------- | --------------------------------- | --------------- |
+| 사용자 확보      | 출시 3 개월 내 MAU 5 만 명               | DAU/MAU, 신규 가입률 |
+| 사용 편의성      | 세션 당 평균 메시지 8 개 이상                | 평균 세션 길이, 재방문률  |
+| LLM 프로파일 활용 | 사용자 중 80 % 이상이 기본 프로파일 중 1개 이상 선택 | 프로파일 선택률        |
+| 성능          | 95 % 요청에 대해 3초 이내 초기 응답           | p95 응답시간        |
+| 안정성         | 월간 장애시간 5 분 미만                    | 가용성(99.99 %)    |
+
+## 3. 사용자 및 페르소나
+
+1. **AI 엔지니어 Alex (30대, 개발자)**
+
+   * 다수의 모델(OpenAI, Anthropic, 네이버 HyperCLOVA)을 사용하며, 프롬프트 A/B 테스트와 리서치가 필요.
+2. **지식 노동자 Bella (20대 후반, 컨설턴트)**
+
+   * 문서 요약·분석, 신속한 정보 검색 및 DeepResearch 기능 선호.
+3. **기업 관리자 Chris (40대, IT Manager)**
+
+   * 사내 사용자 계정·권한·청구를 통합 관리해야 함. 보안·로그 감사가 중요.
+
+## 4. 핵심 가치 제안
+
+* **통합 허브**: 여러 LLM 제공사를 한 UI에서 선택·전환.
+* **개인화**: 사용자별 API Key·모델 프로파일·테마·단축키 저장.
+* **생산성**: 대화+검색+딥리서치 워크플로우를 한 화면에서 멀티턴으로 수행.
+* **엔터프라이즈 준비**: SSO·감사 로그·역할 기반 접근 제어(RBAC) 지원.
+
+## 5. 기능 요구사항
+
+### 5.1 계정·권한 관리
+
+| ID  | 기능                      | 우선순위 | 설명                             |
+| --- | ----------------------- | ---- | ------------------------------ |
+| F‑1 | 이메일·소셜 회원가입/로그인         | High | OAuth(Google, GitHub) 및 이메일 인증 |
+| F‑2 | 프로필 편집(이름, 사진, 비밀번호 변경) | High | 비밀번호는 Bcrypt 해싱 저장             |
+| F‑3 | 역할 설정(일반/관리자)           | High | RBAC 기반 메뉴·API 제어              |
+| F‑4 | 청구·사용량 대시보드             | Mid  | 월별 토큰·쿼리 집계, CSV 내보내기          |
+
+### 5.2 관리자 콘솔
+
+| ID  | 기능             | 우선순위 | 설명                    |
+| --- | -------------- | ---- | --------------------- |
+| A‑1 | 사용자 목록·검색·필터   | High | 상태(활성/중지), 역할, 가입일 기준 |
+| A‑2 | 사용자 강제 비활성화·삭제 | High | 데이터 보존 정책 반영          |
+| A‑3 | 시스템 모니터링 패널    | Mid  | LLM 호출 오류율, 대기열 깊이 표시 |
+
+### 5.3 LLM Hub
+
+| ID  | 기능                                 | 우선순위 | 설명                                                                         |
+| --- | ---------------------------------- | ---- | -------------------------------------------------------------------------- |
+| H‑1 | LLM 프로바이더 템플릿                      | High | OpenAI, Anthropic Claude, Google Gemini                                    |
+| H‑2 | 프로파일 선택 UI                         | High | 관리자 정의 LLM 프로파일(OpenAI, Anthropic Claude, Google Gemini) 제공 (키는 서버 측에서 관리) |
+| H‑3 | 모델 프로파일(temperature, max tokens 등) | Mid  | 즐겨찾기·공유 가능                                                                 |
+| H‑4 | 사용량 추적 및 경고                        | Mid  | 일일 한도 초과 시 알림                                                              |
+
+### 5.4 대화 기능
+
+| ID  | 기능                    | 우선순위 | 설명                      |
+| --- | --------------------- | ---- | ----------------------- |
+| C‑1 | 기본 채팅 인터페이스           | High | Markdown 렌더링, 코드 하이라이트  |
+| C‑2 | 멀티턴 컨텍스트 유지           | High | 토큰 한도 초과 시 자동 요약        |
+| C‑3 | 검색 보조(Search in Chat) | High | 문서/웹 검색 결과를 인라인 카드로 삽입  |
+| C‑4 | Deep Research 모드      | Mid  | 자동 소스 수집, 인용, 요약 리포트 생성 |
+| C‑5 | 히스토리 검색·핀             | High | 제목·내용·태그 기반 검색, 즐겨찾기 핀  |
+
+### 5.5 알림 & 협업
+
+* 실시간 스트리밍 응답(SSE/WebSocket).
+* 세션 링크 공유(읽기/편집 모드).
+* 브라우저 및 이메일 알림(사용량 임계치, 모델 오류).
+
+## 6. UI/UX 요구사항
+
+### 6.1 기본 레이아웃
+
+```
+┌───────────────────────────── Top Bar ─────────────────────────────┐
+│ Logo │ Theme Toggle │ User Menu(프로필·설정·로그아웃) │
+└──────────────────────────────────────────────────────────────────┘
+┌────────── Left Sidebar ──────────┐ ┌──────────── Main Pane ────────────┐
+│ ▶ Chat History (검색)            │ │ Chat Window                     │
+│   • 프로젝트 X 조사              │ │                                 │
+│   • 논문 요약 세션              │ │                                 │
+└──────────────────────────────────┘ │                                 │
+┌────────── Right Sidebar ─────────┐ │ Model Profile & 기능 선택       │
+│ Model Profiles                   │ │                                 │
+│  • GPT‑4o default                │ │                                 │
+│  • Claude 3 Sonnet               │ │                                 │
+│ 기능 선택                        │ │                                 │
+│  □ Search  □ DeepResearch        │ │                                 │
+└──────────────────────────────────┘ └───────────────────────────────────┘
+```
+
+### 6.2 세부 요구
+
+* **다크/라이트 테마**: Tailwind CSS – 시스템 기본에 따라 자동 전환.
+* **단축키**: ⌘/Ctrl + K(검색), ⌘/Ctrl + Enter(전송).
+* **드래그 앤 드롭 업로드**: PDF, 이미지, 코드 파일.
+* **반응형**: 1260 px 이상 Wide, 768‑1259 px Medium, ≤767 px Mobile.
+
+## 7. 시스템 아키텍처
+
+### 7.1 개요 다이어그램 (고수준)
+
+* **Frontend** (Next.js + TypeScript) → **BFF API** (FastAPI Python) → **LLM Adapter Layer** → 외부 LLM API.
+* PostgreSQL (User, Chat, Config), Redis (세션, 메시지 큐), S3/GCS (파일 저장).
+* **Admin SPA** → BFF(Admin) → Metrics Service → Grafana + Prometheus.
+
+### 7.2 컴포넌트 세부
+
+1. **LLM Adapter**: 프로바이더별 인증·레ート 제한·에러 변환 담당.
+2. **Conversation Service**: 메시지 저장, 요약, 토큰 관리.
+3. **Search Service**: Web/Lucene 인덱스 + 벡터DB(RAG) 선택 가능.
+4. **DeepResearch Orchestrator**: 멀티‑스텝 플로우(검색→요약→인용) FSM.
+
+### 7.3 핵심 데이터 모델 (간략)
+
+* `users(id, email, password_hash, role, theme, created_at, ...)`
+* `api_keys(id, user_id, provider, encrypted_key, alias, created_at)`
+* `conversations(id, user_id, title, created_at, updated_at)`
+* `messages(id, conversation_id, role, content, token_count, created_at)`
+
+## 8. 기술 스택 제안
+
+| 레이어           | 기술                              | 비고                |
+| ------------- | ------------------------------- | ----------------- |
+| Frontend      | Next.js 14, React 18, Zustand   | CSR+SSR 혼합, PWA   |
+| Styling       | Tailwind CSS, shadcn/ui         | 테마 토글 내장          |
+| Backend       | FastAPI(Python 3.12), Uvicorn   | Async / OpenAPI   |
+| LLM Adapter   | LangChain + 자체 Wrapper          | 멀티 프로바이더          |
+| DB            | PostgreSQL 16                   | RDS or Cloud SQL  |
+| Cache & Queue | Redis, Sidekiq‑compatible       | RateLimit, PubSub |
+| DevOps        | Docker, Kubernetes(GKE), ArgoCD | CI/CD 파이프라인       |
+| Observability | Grafana, Prometheus, Loki       | Tracing (OTEL)    |
+
+## 9. API 설계 (예시)
+
+```
+POST /v1/chat
+{
+  "conversation_id": "uuid",   // 신규 시 null
+  "model_profile_id": "uuid",
+  "messages": [
+    {"role": "user", "content": "..."}
+  ]
+}
+
+GET /v1/conversations/{id}?search=keyword&page=1
+```
+
+## 10. 보안·규정 준수
+
+* **암호화**: 전송(TLS 1.3), 저장(AES‑256 KMS) 모두 적용.
+* **OWASP Top 10** 대비 패치.
+* **GDPR/CCPA**: 데이터 삭제·이식 요청 API.
+* **토큰 Quota**: 사용자·조직별 일일 제한.
+
+## 11. 비‑기능 요구사항(NFR)
+
+| 카테고리 | 요구사항                             |
+| ---- | -------------------------------- |
+| 성능   | 95 % 응답 3 초 이내, 스트리밍 지연 < 500 ms |
+| 확장성  | 사용자 100 만, 동시 10 만 세션 대응         |
+| 가용성  | 99.99 % / Multi‑Zone 배포          |
+| 로그   | 30일 보관, 감사 로그 별도 1년              |
+| 백업   | DB/파일 일 1회 스냅샷 + PITR            |
+
+## 12. 주요 리스크 & 완화 전략
+
+| 리스크          | 영향        | 완화 방안                        |
+| ------------ | --------- | ---------------------------- |
+| 외부 LLM 요금 급증 | 운영비 상승    | 캐싱·Token Budget 경고, 자체 모델 옵션 |
+| 개인정보 유출      | 법적·신뢰도 손상 | DLP 및 KMS, 보안 테스트 정기 수행      |
+| 레이트 제한 초과    | 서비스 지연    | 백오프+큐잉, 멀티 API Key 분산        |
+
+## 13. 일정(High‑level Roadmap)
+
+| 분기        | 마일스톤                              |
+| --------- | --------------------------------- |
+| Q3 ‑ 2025 | MVP 개발 완료, Closed Beta            |
+| Q4 ‑ 2025 | Public Launch, Billing & Admin 강화 |
+| Q1 ‑ 2026 | 플러그인 마켓, 모바일 앱 출시                 |
+
+## 14. 부록
+
+* 용어 정의
+* 경쟁사 분석(Perplexity, Poe, Gemini Advanced)
+* 참고 링크 및 RFC 목록

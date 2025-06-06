@@ -1,0 +1,93 @@
+# Task ID: 1
+# Title: Setup Next.js Frontend Project with TypeScript
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Initialize the frontend project using Next.js 14 with TypeScript, Tailwind CSS, and shadcn/ui components. Configure dark/light theme support and responsive layouts.
+# Details:
+1. Create a new Next.js 14 project with TypeScript
+```bash
+npx create-next-app@latest aichathub-frontend --typescript
+```
+2. Install and configure Tailwind CSS
+```bash
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+3. Install shadcn/ui components
+```bash
+npm install @shadcn/ui
+```
+4. Set up theme toggle functionality with dark/light modes
+5. Configure responsive layouts for three breakpoints: Wide (≥1260px), Medium (768-1259px), and Mobile (≤767px)
+6. Implement basic layout structure with Top Bar, Left Sidebar, Right Sidebar, and Main Pane as specified in the PRD
+7. Configure Zustand for state management
+```bash
+npm install zustand
+```
+8. Set up keyboard shortcuts (⌘/Ctrl + K for search, ⌘/Ctrl + Enter for send)
+
+# Test Strategy:
+1. Verify that the application renders correctly in development mode
+2. Test responsive layouts across different screen sizes
+3. Verify theme toggle functionality between dark and light modes
+4. Test keyboard shortcuts functionality
+5. Ensure component library is properly integrated
+6. Run Lighthouse performance tests to establish baseline metrics
+
+# Subtasks:
+## 1. Initialize Next.js 14 Project with TypeScript and Tailwind CSS [pending]
+### Dependencies: None
+### Description: Create a new Next.js 14 project with TypeScript and configure Tailwind CSS for styling.
+### Details:
+1. Run `npx create-next-app@latest aichathub-frontend --typescript` to create the project
+2. Select 'Yes' for ESLint, Tailwind CSS, and App Router during setup
+3. Install additional Tailwind plugins: `npm install -D @tailwindcss/typography @tailwindcss/forms`
+4. Configure Tailwind by updating the tailwind.config.js file to include proper content paths and plugins
+5. Set up basic folder structure (app, components, lib, styles)
+
+## 2. Install and Configure shadcn/ui Components [pending]
+### Dependencies: 1.1
+### Description: Set up shadcn/ui component library and configure it to work with the project's styling system.
+### Details:
+1. Install shadcn CLI: `npx shadcn-ui@latest init`
+2. Configure component settings during installation (style, color, directory structure)
+3. Install core components: `npx shadcn-ui@latest add button card dialog dropdown-menu input sheet toggle`
+4. Create a components.json configuration file for shadcn/ui
+5. Set up a components directory structure following shadcn/ui conventions
+
+## 3. Implement Dark/Light Theme Toggle Functionality [pending]
+### Dependencies: 1.2
+### Description: Create a theme system with dark and light mode support that persists user preferences.
+### Details:
+1. Install next-themes: `npm install next-themes`
+2. Create a ThemeProvider component in components/theme-provider.tsx
+3. Wrap the application with ThemeProvider in app/layout.tsx
+4. Create a ThemeToggle component using shadcn/ui Toggle component
+5. Implement theme switching logic with localStorage persistence
+6. Add CSS variables for both themes in globals.css
+7. Test theme switching across different components
+
+## 4. Set Up Responsive Layout Structure [pending]
+### Dependencies: 1.3
+### Description: Create the main application layout with responsive breakpoints for desktop, tablet, and mobile views.
+### Details:
+1. Create layout components: TopBar, LeftSidebar, RightSidebar, and MainPane
+2. Implement responsive grid layout in app/layout.tsx
+3. Configure three breakpoints in Tailwind config: Wide (≥1260px), Medium (768-1259px), and Mobile (≤767px)
+4. Add conditional rendering logic for sidebars based on screen size
+5. Implement collapsible sidebar functionality for medium and small screens
+6. Create responsive navigation components that adapt to different screen sizes
+
+## 5. Configure Zustand and Keyboard Shortcuts [pending]
+### Dependencies: 1.4
+### Description: Set up Zustand for state management and implement keyboard shortcuts for common actions.
+### Details:
+1. Install Zustand: `npm install zustand`
+2. Create store directory with separate store files for different features
+3. Implement a main app store with theme state, UI state, and user preferences
+4. Install a keyboard shortcut library: `npm install react-hotkeys-hook`
+5. Implement keyboard shortcut handlers for search (⌘/Ctrl + K) and send (⌘/Ctrl + Enter)
+6. Create a SearchDialog component that opens with the search shortcut
+7. Add keyboard shortcut hints to relevant UI elements
+

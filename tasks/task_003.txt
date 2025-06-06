@@ -1,0 +1,67 @@
+# Task ID: 3
+# Title: Design and Implement Database Schema
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Create the PostgreSQL database schema for users, API keys, conversations, and messages as specified in the PRD. Implement data models and database connection layer.
+# Details:
+1. Set up PostgreSQL 16 database
+2. Create database schema with the following tables:
+   - users(id, email, password_hash, role, theme, created_at, ...)
+   - api_keys(id, user_id, provider, encrypted_key, alias, created_at)
+   - conversations(id, user_id, title, created_at, updated_at)
+   - messages(id, conversation_id, role, content, token_count, created_at)
+
+3. Use SQLAlchemy ORM for database interactions
+```bash
+pip install sqlalchemy alembic psycopg2-binary
+```
+
+4. Define SQLAlchemy models:
+```python
+# app/db/models.py
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, Enum, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+import enum
+
+Base = declarative_base()
+
+class UserRole(enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.USER)
+    theme = Column(String, default="system")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    conversations = relationship("Conversation", back_populates="user")
+    api_keys = relationship("APIKey", back_populates="user")
+
+# Define remaining models...
+```
+
+5. Set up Alembic for database migrations
+```bash
+alembic init migrations
+```
+
+6. Configure database connection in config.py
+7. Implement repository pattern for database access
+8. Add encryption for sensitive data (API keys)
+
+# Test Strategy:
+1. Unit tests for database models and relationships
+2. Test database migrations with Alembic
+3. Verify data integrity constraints
+4. Test encryption/decryption of sensitive data
+5. Performance testing for common database queries
+6. Test database connection pooling under load

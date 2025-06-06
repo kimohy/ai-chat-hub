@@ -1,0 +1,258 @@
+# Task ID: 9
+# Title: Implement Usage Tracking and Billing Dashboard
+# Status: pending
+# Dependencies: 2, 3, 8
+# Priority: medium
+# Description: Create the usage tracking system and billing dashboard to monitor token consumption, API calls, and provide usage analytics to users and administrators.
+# Details:
+1. Create database models for usage tracking
+```python
+# Add to app/db/models.py
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(Enum(LLMProvider), nullable=False)
+    model_id = Column(String, nullable=False)
+    input_tokens = Column(Integer, nullable=False)
+    output_tokens = Column(Integer, nullable=False)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="usage_records")
+    conversation = relationship("Conversation", back_populates="usage_records")
+
+class UserQuota(Base):
+    __tablename__ = "user_quotas"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    daily_token_limit = Column(Integer, nullable=False, default=100000)
+    monthly_token_limit = Column(Integer, nullable=False, default=3000000)
+    current_daily_usage = Column(Integer, nullable=False, default=0)
+    current_monthly_usage = Column(Integer, nullable=False, default=0)
+    last_daily_reset = Column(DateTime(timezone=True), server_default=func.now())
+    last_monthly_reset = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="quota")
+```
+
+2. Implement usage tracking service
+```python
+# app/services/usage.py
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.db import models
+
+class UsageService:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def record_usage(self, user_id: int, provider: str, model_id: str, 
+                          input_tokens: int, output_tokens: int, 
+                          conversation_id: int = None) -> models.UsageRecord:
+        # Create usage record
+        usage_record = models.UsageRecord(
+            user_id=user_id,
+            provider=provider,
+            model_id=model_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            conversation_id=conversation_id
+        )
+        self.db.add(usage_record)
+        
+        # Update user quota
+        await self._update_user_quota(user_id, input_tokens + output_tokens)
+        
+        self.db.commit()
+        self.db.refresh(usage_record)
+        return usage_record
+    
+    async def _update_user_quota(self, user_id: int, token_count: int):
+        # Get or create user quota
+        quota = self.db.query(models.UserQuota).filter(models.UserQuota.user_id == user_id).first()
+        if not quota:
+            quota = models.UserQuota(user_id=user_id)
+            self.db.add(quota)
+        
+        # Check if daily/monthly reset is needed
+        now = datetime.utcnow()
+        if (now - quota.last_daily_reset).days > 0:
+            quota.current_daily_usage = 0
+            quota.last_daily_reset = now
+        
+        if (now - quota.last_monthly_reset).days > 30:
+            quota.current_monthly_usage = 0
+            quota.last_monthly_reset = now
+        
+        # Update usage
+        quota.current_daily_usage += token_count
+        quota.current_monthly_usage += token_count
+    
+    async def get_user_usage_summary(self, user_id: int):
+        # Get daily usage for last 30 days
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        daily_usage = self.db.query(
+            func.date(models.UsageRecord.created_at).label('date'),
+            func.sum(models.UsageRecord.input_tokens + models.UsageRecord.output_tokens).label('tokens')
+        ).filter(
+            models.UsageRecord.user_id == user_id,
+            models.UsageRecord.created_at >= thirty_days_ago
+        ).group_by(
+            func.date(models.UsageRecord.created_at)
+        ).all()
+        
+        # Get usage by provider
+        provider_usage = self.db.query(
+            models.UsageRecord.provider,
+            func.sum(models.UsageRecord.input_tokens + models.UsageRecord.output_tokens).label('tokens')
+        ).filter(
+            models.UsageRecord.user_id == user_id,
+            models.UsageRecord.created_at >= thirty_days_ago
+        ).group_by(
+            models.UsageRecord.provider
+        ).all()
+        
+        # Get quota information
+        quota = self.db.query(models.UserQuota).filter(models.UserQuota.user_id == user_id).first()
+        
+        return {
+            "daily_usage": [{'date': str(day.date), 'tokens': day.tokens} for day in daily_usage],
+            "provider_usage": [{'provider': prov.provider.value, 'tokens': prov.tokens} for prov in provider_usage],
+            "quota": {
+                "daily_limit": quota.daily_token_limit if quota else 100000,
+                "monthly_limit": quota.monthly_token_limit if quota else 3000000,
+                "current_daily_usage": quota.current_daily_usage if quota else 0,
+                "current_monthly_usage": quota.current_monthly_usage if quota else 0
+            }
+        }
+```
+
+3. Create API endpoints for usage data
+4. Implement usage dashboard UI with charts
+```tsx
+// pages/dashboard/usage.tsx
+import React, { useEffect, useState } from 'react';
+import { BarChart, LineChart, Card, Metric, Text } from 'your-chart-library';
+
+interface UsageSummary {
+  daily_usage: Array<{date: string, tokens: number}>;
+  provider_usage: Array<{provider: string, tokens: number}>;
+  quota: {
+    daily_limit: number;
+    monthly_limit: number;
+    current_daily_usage: number;
+    current_monthly_usage: number;
+  };
+}
+
+const UsageDashboard: React.FC = () => {
+  const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    fetchUsageSummary();
+  }, []);
+  
+  const fetchUsageSummary = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/usage/summary');
+      if (!response.ok) throw new Error('Failed to fetch usage data');
+      const data = await response.json();
+      setUsageSummary(data);
+    } catch (error) {
+      console.error('Error fetching usage data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (loading) return <div>Loading usage data...</div>;
+  if (!usageSummary) return <div>Failed to load usage data</div>;
+  
+  const dailyUsagePercentage = (usageSummary.quota.current_daily_usage / usageSummary.quota.daily_limit) * 100;
+  const monthlyUsagePercentage = (usageSummary.quota.current_monthly_usage / usageSummary.quota.monthly_limit) * 100;
+  
+  return (
+    <div className="usage-dashboard">
+      <h1 className="text-2xl font-bold mb-4">Usage Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Card>
+          <Text>Daily Token Usage</Text>
+          <Metric>{usageSummary.quota.current_daily_usage.toLocaleString()} / {usageSummary.quota.daily_limit.toLocaleString()}</Metric>
+          <ProgressBar percentage={dailyUsagePercentage} />
+        </Card>
+        
+        <Card>
+          <Text>Monthly Token Usage</Text>
+          <Metric>{usageSummary.quota.current_monthly_usage.toLocaleString()} / {usageSummary.quota.monthly_limit.toLocaleString()}</Metric>
+          <ProgressBar percentage={monthlyUsagePercentage} />
+        </Card>
+      </div>
+      
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">Daily Usage (Last 30 Days)</h2>
+        <LineChart 
+          data={usageSummary.daily_usage}
+          index="date"
+          categories={["tokens"]}
+          colors={["blue"]}
+        />
+      </div>
+      
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Usage by Provider</h2>
+        <BarChart 
+          data={usageSummary.provider_usage}
+          index="provider"
+          categories={["tokens"]}
+          colors={["green"]}
+        />
+      </div>
+      
+      <div className="mt-6">
+        <button 
+          className="bg-primary text-white px-4 py-2 rounded"
+          onClick={() => window.open('/api/v1/usage/export', '_blank')}
+        >
+          Export as CSV
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ProgressBar: React.FC<{percentage: number}> = ({ percentage }) => {
+  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  const color = clampedPercentage > 90 ? 'bg-red-500' : clampedPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500';
+  
+  return (
+    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+      <div 
+        className={`h-2.5 rounded-full ${color}`} 
+        style={{ width: `${clampedPercentage}%` }}
+      ></div>
+    </div>
+  );
+};
+
+export default UsageDashboard;
+```
+
+5. Implement CSV export functionality
+6. Create usage alerts and notifications
+7. Add admin-level usage analytics across all users
+
+# Test Strategy:
+1. Unit tests for usage tracking service
+2. Test usage recording accuracy
+3. Verify quota management and reset logic
+4. Test usage dashboard UI components
+5. Verify CSV export functionality
+6. Test usage alerts and notifications
+7. Performance testing for usage data aggregation
