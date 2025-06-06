@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import get_settings
 from app.core.rate_limit import rate_limit_middleware
 from app.api.v1.routes import auth, chat, conversations, admin
+from app.db.session import Base, engine
 import logging
 import traceback
 
@@ -15,6 +16,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+# Initialize database
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Chat Hub API",

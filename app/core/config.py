@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-here"  # Change in production
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Database
+    DATABASE_URL: str = "sqlite:///./test.db"
     
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 60
