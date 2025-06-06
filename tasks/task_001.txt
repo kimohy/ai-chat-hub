@@ -1,6 +1,6 @@
 # Task ID: 1
 # Title: Setup Next.js Frontend Project with TypeScript
-# Status: pending
+# Status: complete
 # Dependencies: None
 # Priority: high
 # Description: Initialize the frontend project using Next.js 14 with TypeScript, Tailwind CSS, and shadcn/ui components. Configure dark/light theme support and responsive layouts.
