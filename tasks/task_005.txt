@@ -1,6 +1,6 @@
 # Task ID: 5
 # Title: Develop Chat Interface and Conversation Management
-# Status: pending
+# Status: in_progress
 # Dependencies: 1, 4
 # Priority: high
 # Description: Implement the core chat interface with Markdown rendering, code highlighting, multi-turn context maintenance, and conversation history management.

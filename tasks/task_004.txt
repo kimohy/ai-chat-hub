@@ -1,6 +1,6 @@
 # Task ID: 4
 # Title: Implement Authentication and User Management
-# Status: pending
+# Status: in_progress
 # Dependencies: 2, 3
 # Priority: high
 # Description: Create authentication system with email and OAuth (Google, GitHub) login options, user registration, profile management, and role-based access control (RBAC).
